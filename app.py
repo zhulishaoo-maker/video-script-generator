@@ -97,6 +97,16 @@ st.markdown("""
     .status-success { color: #27ae60; font-weight: 600; }
     .status-pending { color: #f39c12; font-weight: 600; }
     .status-fail { color: #e74c3c; font-weight: 600; }
+    div[data-testid="stHorizontalBlock"] button {
+        border-radius: 12px;
+        transition: all 0.3s ease;
+    }
+    div[data-testid="stHorizontalBlock"] button:focus,
+    div[data-testid="stHorizontalBlock"] button:active {
+        border-color: #FF6B6B !important;
+        background: linear-gradient(135deg, #FF6B6B, #FF8E53) !important;
+        color: white !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -206,12 +216,16 @@ with col_main:
 
         # 风格选择
         st.markdown("##### 🎨 视觉风格")
+        if "selected_style" not in st.session_state:
+            st.session_state["selected_style"] = "1"
         style_cols = st.columns(5)
-        style_key = "1"
         for idx, (key, style) in enumerate(VISUAL_STYLES.items()):
             with style_cols[idx]:
-                if st.button(f"🎯 {style['name']}", use_container_width=True, key=f"style_{key}"):
-                    style_key = key
+                is_selected = st.session_state["selected_style"] == key
+                btn_type = "primary" if is_selected else "secondary"
+                if st.button(f"🎯 {style['name']}", key=f"style_{key}", type=btn_type, use_container_width=True):
+                    st.session_state["selected_style"] = key
+                    st.rerun()
 
         st.markdown("---")
 
@@ -228,7 +242,7 @@ with col_main:
                 with st.spinner("🔮 AI 正在创作..."):
                     try:
                         skill = create_skill(api_key=api_key, provider=provider)
-                        script = skill.generate(product, style_key)
+                        script = skill.generate(product, st.session_state["selected_style"])
                         st.session_state["current_script"] = script
                         st.session_state["current_provider"] = provider
 

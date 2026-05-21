@@ -37,11 +37,11 @@ MODEL_CONFIG = {
     },
     "minimax": {
         "name": "MiniMax",
-        "model": "MiniMax-M2.7-highspeed",
-        "package": "minimax",
+        "model": "MiniMax-M2.7",
+        "package": "requests",
         "env_key": "MINIMAX_API_KEY",
-        "importlib": "from minimax import MiniMax",
-        "generate_method": "client.chat(prompt=prompt)"
+        "importlib": "import requests",
+        "generate_method": "MiniMax-M2.7 API call via requests"
     }
 }
 
@@ -100,8 +100,8 @@ class VideoScriptSkill:
             import anthropic
             self.client = anthropic.Anthropic(api_key=self.api_key)
         elif self.provider == "minimax":
-            from minimax import MiniMax
-            self.client = MiniMax(api_key=self.api_key)
+            import requests
+            self.client = requests
 
     def get_providers(self) -> Dict[str, str]:
         """返回所有可用的模型提供商"""
@@ -196,7 +196,25 @@ AI 生成关键词：{style['prompt_keywords']}
                 messages=[{"role": "user", "content": prompt}]
             ).content[0].text
         elif self.provider == "minimax":
-            result = self.client.chat(prompt=prompt)
+            import json as json_module
+            headers = {
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json"
+            }
+            data = {
+                "model": "MiniMax-M2.7",
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": 2048
+            }
+            response = self.client.post(
+                "https://api.minimax.chat/v1/text/chatcompletion_v2",
+                headers=headers,
+                json=data,
+                timeout=60
+            )
+            result = response.json().get("choices", [{}])[0].get("message", {}).get("content", "")
+            if not result:
+                result = response.json().get("choices", [{}])[0].get("text", "")
 
         json_str = self._clean_response(result)
         return json.loads(json_str)
