@@ -1,15 +1,51 @@
 """
 视频号内容化营销脚本生成 Skill
 Video Script Generator for WeChat Video Account
+支持多模型：Gemini / OpenAI / Anthropic / MiniMax
 """
 
-import google.generativeai as genai
 import json
 import re
-from typing import Dict, List
+import os
+from typing import Dict, List, Optional
 
-DEFAULT_MODEL = "gemini-3.1-flash"
+# ========== 模型配置 ==========
+MODEL_CONFIG = {
+    "gemini": {
+        "name": "Google Gemini",
+        "model": "gemini-3.1-flash",
+        "package": "google-generativeai",
+        "env_key": "GEMINI_API_KEY",
+        "importlib": "google.generativeai as genai",
+        "generate_method": "model.generate_content(prompt).text"
+    },
+    "openai": {
+        "name": "OpenAI GPT-4o",
+        "model": "gpt-4o-mini",
+        "package": "openai",
+        "env_key": "OPENAI_API_KEY",
+        "importlib": "from openai import OpenAI",
+        "generate_method": "client.chat.completions.create(model='gpt-4o-mini', messages=[{'role': 'user', 'content': prompt}]).choices[0].message.content"
+    },
+    "anthropic": {
+        "name": "Anthropic Claude",
+        "model": "claude-sonnet-4-20250514",
+        "package": "anthropic",
+        "env_key": "ANTHROPIC_API_KEY",
+        "importlib": "import anthropic",
+        "generate_method": "client.messages.create(model='claude-sonnet-4-20250514', max_tokens=2048, messages=[{'role': 'user', 'content': prompt}]).content[0].text"
+    },
+    "minimax": {
+        "name": "MiniMax",
+        "model": "MiniMax-M2.7-highspeed",
+        "package": "minimax",
+        "env_key": "MINIMAX_API_KEY",
+        "importlib": "from minimax import MiniMax",
+        "generate_method": "client.chat(prompt=prompt)"
+    }
+}
 
+# ========== 视觉风格库 ==========
 VISUAL_STYLES: Dict[str, Dict[str, str]] = {
     "1": {
         "name": "真实场景拍摄",
@@ -33,6 +69,7 @@ VISUAL_STYLES: Dict[str, Dict[str, str]] = {
     }
 }
 
+# ========== 敏感词列表 ==========
 SENSITIVE_WORDS = [
     "秒杀", "最", "第一", "全网最低", "销量冠军",
     "后悔药", "亏本", "立即抢购", "限时特价",
@@ -43,9 +80,32 @@ SENSITIVE_WORDS = [
 class VideoScriptSkill:
     """视频号内容化营销脚本生成 Skill"""
 
-    def __init__(self, api_key: str, model_name: str = DEFAULT_MODEL):
-        genai.configure(api_key=api_key)
-        self.model = genai.GenerativeModel(model_name)
+    def __init__(self, api_key: str, provider: str = "gemini", model_name: Optional[str] = None):
+        self.provider = provider
+        self.config = MODEL_CONFIG.get(provider, MODEL_CONFIG["gemini"])
+        self.model_name = model_name or self.config["model"]
+        self.api_key = api_key
+        self._init_client()
+
+    def _init_client(self):
+        """根据 provider 初始化客户端"""
+        if self.provider == "gemini":
+            import google.generativeai as genai
+            genai.configure(api_key=self.api_key)
+            self.model = genai.GenerativeModel(self.model_name)
+        elif self.provider == "openai":
+            from openai import OpenAI
+            self.client = OpenAI(api_key=self.api_key)
+        elif self.provider == "anthropic":
+            import anthropic
+            self.client = anthropic.Anthropic(api_key=self.api_key)
+        elif self.provider == "minimax":
+            from minimax import MiniMax
+            self.client = MiniMax(api_key=self.api_key)
+
+    def get_providers(self) -> Dict[str, str]:
+        """返回所有可用的模型提供商"""
+        return {k: v["name"] for k, v in MODEL_CONFIG.items()}
 
     def get_styles(self) -> Dict[str, str]:
         """返回所有视觉风格选项"""
@@ -121,9 +181,24 @@ AI 生成关键词：{style['prompt_keywords']}
         style = self.get_style_info(style_key)
         prompt = self._build_prompt(product_info, style)
 
-        response = self.model.generate_content(prompt)
-        json_str = self._clean_response(response.text)
+        if self.provider == "gemini":
+            response = self.model.generate_content(prompt)
+            result = response.text
+        elif self.provider == "openai":
+            result = self.client.chat.completions.create(
+                model=self.model_name,
+                messages=[{"role": "user", "content": prompt}]
+            ).choices[0].message.content
+        elif self.provider == "anthropic":
+            result = self.client.messages.create(
+                model=self.model_name,
+                max_tokens=2048,
+                messages=[{"role": "user", "content": prompt}]
+            ).content[0].text
+        elif self.provider == "minimax":
+            result = self.client.chat(prompt=prompt)
 
+        json_str = self._clean_response(result)
         return json.loads(json_str)
 
     def generate_with_retry(self, product_info: str, style_key: str = "1", max_retries: int = 3) -> List[Dict]:
@@ -138,6 +213,6 @@ AI 生成关键词：{style['prompt_keywords']}
         return []
 
 
-def create_skill(api_key: str, model_name: str = DEFAULT_MODEL) -> VideoScriptSkill:
+def create_skill(api_key: str, provider: str = "gemini", model_name: Optional[str] = None) -> VideoScriptSkill:
     """创建 Skill 实例的便捷函数"""
-    return VideoScriptSkill(api_key=api_key, model_name=model_name)
+    return VideoScriptSkill(api_key=api_key, provider=provider, model_name=model_name)
