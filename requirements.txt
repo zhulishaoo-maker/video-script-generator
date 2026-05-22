@@ -1,6 +1,6 @@
-anthropic==0.104.0
-openai==2.38.0
-protobuf==7.35.0
-requests==2.34.2
-streamlit==1.50.0
-google-generativeai==0.3.2
+anthropic
+openai
+protobuf
+requests
+streamlit
+google-generativeai
