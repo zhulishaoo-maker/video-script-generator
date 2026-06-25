@@ -2,7 +2,7 @@
 
 基于 AI 的视频号营销脚本生成工具，支持：
 
-- 🎬 AI 生成视频脚本（Gemini 模型）
+- 🎬 AI 生成视频脚本（Poe / Gemini / OpenAI / Anthropic / MiniMax）
 - 🎨 多种视觉风格选择
 - ✏️ 脚本在线编辑
 - 📤 JSON 导入导出
@@ -13,11 +13,27 @@
 ```bash
 pip install -r requirements.txt
 
-# 设置 API Key
-export GEMINI_API_KEY="your-api-key"
+# 设置 API Key（推荐 Poe）
+export POE_API_KEY="your-api-key"
 
-# 启动
+# 启动网页应用
 streamlit run app.py
+```
+
+命令行生成：
+
+```bash
+python main.py \
+  --node "年货节" \
+  --product "强效洗衣液，去除顽固污渍，适合有孩子的家庭" \
+  --provider poe
+```
+
+也可以继续使用其他服务商：
+
+```bash
+export GEMINI_API_KEY="your-api-key"
+python main.py --node "618" --product "产品描述" --provider gemini
 ```
 
 ## 在线部署

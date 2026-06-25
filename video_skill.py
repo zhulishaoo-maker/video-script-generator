@@ -1,7 +1,7 @@
 """
 视频号内容化营销脚本生成 Skill
 Video Script Generator for WeChat Video Account
-支持多模型：Gemini / OpenAI / Anthropic / MiniMax
+支持多模型：Gemini / Poe / OpenAI / Anthropic / MiniMax
 """
 
 import json
@@ -26,6 +26,15 @@ MODEL_CONFIG = {
         "env_key": "OPENAI_API_KEY",
         "importlib": "from openai import OpenAI",
         "generate_method": "client.chat.completions.create(model='gpt-4o-mini', messages=[{'role': 'user', 'content': prompt}]).choices[0].message.content"
+    },
+    "poe": {
+        "name": "Poe API",
+        "model": "Claude-Sonnet-4.6",
+        "package": "openai",
+        "env_key": "POE_API_KEY",
+        "base_url": "https://api.poe.com/v1",
+        "importlib": "from openai import OpenAI",
+        "generate_method": "client.chat.completions.create(model='Claude-Sonnet-4.6', messages=[{'role': 'user', 'content': prompt}]).choices[0].message.content"
     },
     "anthropic": {
         "name": "Anthropic Claude",
@@ -96,6 +105,12 @@ class VideoScriptSkill:
         elif self.provider == "openai":
             from openai import OpenAI
             self.client = OpenAI(api_key=self.api_key)
+        elif self.provider == "poe":
+            from openai import OpenAI
+            self.client = OpenAI(
+                api_key=self.api_key,
+                base_url=self.config["base_url"],
+            )
         elif self.provider == "anthropic":
             import anthropic
             self.client = anthropic.Anthropic(api_key=self.api_key)
@@ -185,6 +200,11 @@ AI 生成关键词：{style['prompt_keywords']}
             response = self.model.generate_content(prompt)
             result = response.text
         elif self.provider == "openai":
+            result = self.client.chat.completions.create(
+                model=self.model_name,
+                messages=[{"role": "user", "content": prompt}]
+            ).choices[0].message.content
+        elif self.provider == "poe":
             result = self.client.chat.completions.create(
                 model=self.model_name,
                 messages=[{"role": "user", "content": prompt}]
